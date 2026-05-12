@@ -75,12 +75,16 @@ def run(robot: Robot) -> None:
             #     (1000.0, 2500.0),
             # ]
             # left lane
+            # path_control_points = [
+            #     (300.0,   0.0),
+            #     (300.0, 2500.0),
+            #     (1300.0, 2500.0),
+            # ]
             path_control_points = [
-                (300.0,   0.0),
-                (300.0, 2500.0),
-                (1300.0, 2500.0),
+                (0.0,   100),
+                (0, 200),
+                (0, 300),
             ]
-
             path = densify_polyline(path_control_points, spacing=400.0)
 
             robot._nav_follow_pp_path(
