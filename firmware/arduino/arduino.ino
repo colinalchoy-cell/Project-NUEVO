@@ -73,6 +73,7 @@
 #include "src/modules/StepperManager.h"
 #include "src/drivers/StepperMotor.h"
 #include "src/drivers/ServoController.h"
+#include "src/LimitSwitch.h"
 
 // Sensors and user I/O
 #include "src/modules/SensorManager.h"
@@ -126,6 +127,11 @@ EncoderCounter4x encoder4;
 
 // Motor controller arrays
 DCMotor dcMotors[NUM_DC_MOTORS];
+
+#if defined(PIN_ST1_LIMIT)
+LimitSwitch limitSwitch(PIN_ST1_LIMIT, LIMIT_ACTIVE_LOW);
+#endif
+
 static volatile uint32_t g_uartDor2Count = 0;
 static volatile uint32_t g_uartFe2Count = 0;
 
@@ -816,6 +822,11 @@ void setup() {
 
   DEBUG_SERIAL.println(F("[Setup] Initializing user I/O..."));
   UserIO::init();
+
+#if defined(PIN_ST1_LIMIT)
+  DEBUG_SERIAL.println(F("[Setup] Initializing limit switch..."));
+  limitSwitch.begin();
+#endif
 
 #if SERVO_CONTROLLER_ENABLED
   DEBUG_SERIAL.println(F("[Setup] Initializing servo controller..."));

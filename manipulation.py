@@ -50,7 +50,7 @@ from robot.hardware_map import (
     LED,
     Motor,
     POSITION_UNIT,
-    # ServoChannel,
+    ServoChannel,
     StepMoveType,
     Stepper,
 )
@@ -62,10 +62,10 @@ from robot.robot import FirmwareState, Robot
 # ---------------------------------------------------------------------------
 
 # Servo 1 — gripper jaw
-# GRIPPER_SERVO = ServoChannel.CH_1
-# GRIPPER_OPEN_DEG = 15.0
-# GRIPPER_CLOSE_DEG = 120.0
-# GRIPPER_SETTLE_S = 1.0
+GRIPPER_SERVO = ServoChannel.CH_1
+GRIPPER_OPEN_DEG = 15.0
+GRIPPER_CLOSE_DEG = 120.0
+GRIPPER_SETTLE_S = 1.0
 
 # Stepper 1 — horizontal arm extension
 ARM_STEPPER = Stepper.STEPPER_1
@@ -156,7 +156,7 @@ def run_pick_sequence(robot: Robot) -> bool:
         max_velocity=ARM_MAX_VELOCITY,
         acceleration=ARM_ACCELERATION,
     )
-    # robot.enable_servo(GRIPPER_SERVO)
+    robot.enable_servo(GRIPPER_SERVO)
     robot.enable_motor(LIFT_MOTOR, DCMotorMode.POSITION)
     robot.step_enable(ARM_STEPPER)
 
@@ -171,7 +171,7 @@ def run_pick_sequence(robot: Robot) -> bool:
     ):
         print("[warn] lift failed to reach the raised position")
         robot.step_disable(ARM_STEPPER)
-        # robot.disable_servo(GRIPPER_SERVO)
+        robot.disable_servo(GRIPPER_SERVO)
         robot.disable_motor(LIFT_MOTOR)
         return False
 
@@ -185,12 +185,12 @@ def run_pick_sequence(robot: Robot) -> bool:
     ):
         print("[warn] arm failed to extend — check stepper enable or home limit wiring")
         robot.step_disable(ARM_STEPPER)
-        # robot.disable_servo(GRIPPER_SERVO)
+        robot.disable_servo(GRIPPER_SERVO)
         robot.disable_motor(LIFT_MOTOR)
         return False
 
-    # print("[SEQ] open gripper")
-    # robot.set_servo(GRIPPER_SERVO, GRIPPER_OPEN_DEG)
+    print("[SEQ] open gripper")
+    robot.set_servo(GRIPPER_SERVO, GRIPPER_OPEN_DEG)
     time.sleep(GRIPPER_SETTLE_S)
 
     print("[SEQ] lower lift")
@@ -204,12 +204,12 @@ def run_pick_sequence(robot: Robot) -> bool:
     ):
         print("[warn] lift failed to lower")
         robot.step_disable(ARM_STEPPER)
-        # robot.disable_servo(GRIPPER_SERVO)
+        robot.disable_servo(GRIPPER_SERVO)
         robot.disable_motor(LIFT_MOTOR)
         return False
 
-    # print("[SEQ] close gripper")
-    # robot.set_servo(GRIPPER_SERVO, GRIPPER_CLOSE_DEG)
+    print("[SEQ] close gripper")
+    robot.set_servo(GRIPPER_SERVO, GRIPPER_CLOSE_DEG)
     time.sleep(GRIPPER_SETTLE_S)
 
     print("[SEQ] raise lift")
@@ -223,7 +223,7 @@ def run_pick_sequence(robot: Robot) -> bool:
     ):
         print("[warn] lift failed to raise with the part")
         robot.step_disable(ARM_STEPPER)
-        # robot.disable_servo(GRIPPER_SERVO)
+        robot.disable_servo(GRIPPER_SERVO)
         robot.disable_motor(LIFT_MOTOR)
         return False
 
@@ -237,12 +237,12 @@ def run_pick_sequence(robot: Robot) -> bool:
     ):
         print("[warn] arm failed to retract")
         robot.step_disable(ARM_STEPPER)
-        # robot.disable_servo(GRIPPER_SERVO)
+        robot.disable_servo(GRIPPER_SERVO)
         robot.disable_motor(LIFT_MOTOR)
         return False
 
     robot.step_disable(ARM_STEPPER)
-    # robot.disable_servo(GRIPPER_SERVO)
+    robot.disable_servo(GRIPPER_SERVO)
 
     print("[SEQ] return lift to idle")
     return restore_idle_lift(robot)
