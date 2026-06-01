@@ -44,6 +44,7 @@
 #include "src/config.h"
 #include "src/pins.h"
 #include "src/modules/EncoderCounter.h"
+#define DEBUG_SERIAL Serial
 
 // ============================================================================
 // ENCODER INSTANCES
