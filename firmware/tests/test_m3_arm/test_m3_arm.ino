@@ -35,6 +35,13 @@ int16_t currentSpeed = 128;
 const bool TEST_FORCE_FULL_ON = false;
 int8_t currentDirection = 0; // 1 = forward, -1 = reverse, 0 = stop
 
+const uint8_t kStepperStepPin = PIN_ST1_STEP;
+const uint8_t kStepperDirPin = PIN_ST1_DIR;
+const uint8_t kStepperEnablePin = PIN_ST1_EN;
+const uint32_t kStepperStepIntervalUs = 2000; // 500 Hz stepping rate
+int8_t currentStepperDirection = 0; // 1 = forward, -1 = reverse, 0 = stop
+uint32_t lastStepperStepUs = 0;
+
 static bool isMotorEnabled() {
     return currentDirection != 0;
 }
@@ -73,6 +80,40 @@ static void setMotorPWM(int16_t pwm) {
     }
 }
 
+static void disableStepper() {
+    digitalWrite(kStepperEnablePin, HIGH); // active LOW enable
+    currentStepperDirection = 0;
+}
+
+static void setStepperDirection(int8_t dir) {
+    if (dir == 0) {
+        disableStepper();
+        return;
+    }
+
+    digitalWrite(kStepperDirPin, (dir > 0) ? HIGH : LOW);
+    digitalWrite(kStepperEnablePin, LOW);
+    currentStepperDirection = dir;
+}
+
+static void stopStepper() {
+    disableStepper();
+}
+
+static void updateStepper() {
+    if (currentStepperDirection == 0) {
+        return;
+    }
+
+    uint32_t now = micros();
+    if ((uint32_t)(now - lastStepperStepUs) >= kStepperStepIntervalUs) {
+        lastStepperStepUs = now;
+        digitalWrite(kStepperStepPin, HIGH);
+        delayMicroseconds(5);
+        digitalWrite(kStepperStepPin, LOW);
+    }
+}
+
 static void printStatus() {
     Serial.println();
     Serial.print(F("M3 Motor Status -> "));
@@ -85,7 +126,16 @@ static void printStatus() {
     }
     Serial.print(F(" | Speed="));
     Serial.println(currentSpeed);
-    Serial.println(F("Commands: u=forward d=reverse s=stop +=faster -=slower p=status"));
+    Serial.print(F("Stepper1 -> "));
+    if (currentStepperDirection > 0) {
+        Serial.print(F("Forward"));
+    } else if (currentStepperDirection < 0) {
+        Serial.print(F("Reverse"));
+    } else {
+        Serial.print(F("Stopped"));
+    }
+    Serial.println();
+    Serial.println(F("Commands: u=forward d=reverse s=stop +=faster -=slower f=stepper forward b=stepper backward t=stepper stop p=status"));
 }
 
 void setup() {
@@ -111,7 +161,11 @@ void setup() {
     pinMode(PIN_M3_EN, OUTPUT);
     pinMode(PIN_M3_IN1, OUTPUT);
     pinMode(PIN_M3_IN2, OUTPUT);
+    pinMode(kStepperStepPin, OUTPUT);
+    pinMode(kStepperDirPin, OUTPUT);
+    pinMode(kStepperEnablePin, OUTPUT);
     stopMotor();
+    disableStepper();
 
     Serial.print(F("Starting speed: "));
     Serial.println(currentSpeed);
@@ -160,6 +214,21 @@ void loop() {
                     setMotorPWM(currentDirection * currentSpeed);
                 }
                 break;
+            case 'f':
+            case 'F':
+                setStepperDirection(1);
+                Serial.println(F("Command: stepper forward"));
+                break;
+            case 'b':
+            case 'B':
+                setStepperDirection(-1);
+                Serial.println(F("Command: stepper backward"));
+                break;
+            case 't':
+            case 'T':
+                stopStepper();
+                Serial.println(F("Command: stepper stop"));
+                break;
             case 'p':
             case 'P':
                 printStatus();
@@ -168,9 +237,11 @@ void loop() {
                 if (cmd != '\r' && cmd != '\n') {
                     Serial.print(F("Unknown command: "));
                     Serial.println(cmd);
-                    Serial.println(F("Use u/d/s/+/–/p."));
+                    Serial.println(F("Use u/d/s/+/\-/p/f/b/t."));
                 }
                 break;
         }
     }
+
+    updateStepper();
 }

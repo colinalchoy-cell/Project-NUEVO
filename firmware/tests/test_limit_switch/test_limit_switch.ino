@@ -3,12 +3,12 @@
 #include "src/config.h"
 #include "src/LimitSwitch.h"
 
-#if defined(PIN_ST1_LIMIT)
-  static const uint8_t LIMIT_PIN = PIN_ST1_LIMIT;
-#elif defined(PIN_LIM1)
-  static const uint8_t LIMIT_PIN = PIN_LIM1;
+#if defined(PIN_ST5_LIMIT)
+  static const uint8_t LIMIT_PIN = PIN_ST5_LIMIT;
+#elif defined(PIN_LIM5)
+  static const uint8_t LIMIT_PIN = PIN_LIM5;
 #else
-#error "No limit switch pin defined. Define PIN_ST1_LIMIT in config.h or enable PIN_LIM1."
+#error "No limit switch pin defined. Define PIN_ST5_LIMIT in config.h or enable PIN_LIM5."
 #endif
 
 LimitSwitch limitSwitch(LIMIT_PIN, LIMIT_ACTIVE_LOW);
