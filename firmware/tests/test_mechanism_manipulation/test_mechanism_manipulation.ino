@@ -47,7 +47,7 @@ const uint8_t kStepperDirPin = PIN_ST1_DIR;
 const uint8_t kStepperEnablePin = PIN_ST1_EN;
 const uint8_t kStepperLimitPin = PIN_ST1_LIMIT;  // PIN_LIM1 by default
 const int8_t kStepperHomeDirection = -1;         // +1 or -1; flip if needed
-const uint16_t kStepperStepPulseUs = 700;        // Step pulse width and spacing
+const uint16_t kStepperStepPulseUs = 1000;        // Step pulse width and spacing
 
 // Hard-coded test values
 const uint32_t kDcEncoderPositions[] = {10, 30, 50};
@@ -64,7 +64,7 @@ int16_t manualDcPwm = 180;        // Manual DC motor PWM speed
 int8_t dcMotorManualDir = 0;       // 1=fwd, -1=rev, 0=stopped
 int8_t stepperManualDir = 0;       // 1=fwd, -1=rev, 0=stopped
 uint32_t lastStepperUpdateUs = 0;
-const uint32_t kStepperStepIntervalUs = 1000; // Step interval (1000 Hz)
+const uint32_t kStepperStepIntervalUs = 1500; // Step interval (1000 Hz)
 
 void encoderISR_M3A(){
     m3Encoder.onInterruptA();
@@ -225,7 +225,7 @@ void homeDcMotor() {
     setMotorPwm(homePwm);
 
     uint32_t startMs = millis();
-    const uint32_t timeoutMs = 1000;
+    const uint32_t timeoutMs = 10000;
     bool triggered = false;
 
     while (millis() - startMs < timeoutMs && !stopRequested) {
