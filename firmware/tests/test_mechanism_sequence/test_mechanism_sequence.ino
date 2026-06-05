@@ -5,15 +5,15 @@
  * Sequence:
  *   1. Zero stepper and DC motor (homing)
  *   2. Pick up bottom bun
- *   3. Pick up patty
- *   4. Pick up top bun
- *   5. Transfer burger to dynamic platform
- *  
- *  g to start sequence
- *  5 to emergency stop
+ *   3. Drive forward to patty position
+ *   4. Pick up patty
+ *   5. Drive forward to top bun position
+ *   6. Pick up top bun
+ *   7. Transfer burger to dynamic platform
  *
  * Hardware assumptions:
- *  - M3 motor driver connected to PIN_M3_EN / PIN_M3_IN1 / PIN_M3_IN2
+ *  - M1/M2 drive motors connected to PIN_M1_/PIN_M2_ (front wheels)
+ *  - M3 motor driver connected to PIN_M3_EN / PIN_M3_IN1 / PIN_M3_IN2 (lift)
  *  - M3 home switch wired to PIN_LIM5
  *  - Stepper 1 driver connected to PIN_ST1_STEP / PIN_ST1_DIR / PIN_ST1_EN
  *  - Stepper 1 home switch wired to PIN_ST1_LIMIT (PIN_LIM1 by default)
@@ -23,49 +23,78 @@
 #include "src/pins.h"
 #include "src/modules/EncoderCounter.h"
 
-EncoderCounter4x m3Encoder;
+// ============================================================================
+// ENCODER INSTANCES
+// ============================================================================
+
+EncoderCounter4x m3Encoder;   // Lift motor encoder
+
+#if ENCODER_1_MODE == ENCODER_2X
+EncoderCounter2x encoder1;
+#else
+EncoderCounter4x encoder1;
+#endif
+
+#if ENCODER_2_MODE == ENCODER_2X
+EncoderCounter2x encoder2;
+#else
+EncoderCounter4x encoder2;
+#endif
 
 #define DEBUG_SERIAL Serial
 
+// ============================================================================
+// INTERRUPT SERVICE ROUTINES
+// ============================================================================
+
 ISR(PCINT2_vect) {
-    m3Encoder.onInterruptA();
+    m3Encoder.onInterruptA();   // M3 lift encoder (A14/A15 PCINT)
 }
+
+void encoderISR_M1() { encoder1.onInterruptA(); }
+void encoderISR_M2() { encoder2.onInterruptA(); }
 
 // ============================================================================
 // HARD-CODED POSITIONS — edit these to match your mechanism
 // ============================================================================
 
-// DC motor encoder positions (counts from home)
-const int32_t kDcAboveTable      = 8000;   // High enough to clear table surface
-const int32_t kDcTableHeight     = 4000;    // Down to table level to pick up ingredient
-const int32_t kDcStaticPlatform  = 820;    // Down to static platform surface
-const int32_t kDcStaticPlusBun   = 1000;    // Static platform + one bun height
-const int32_t kDcStaticPlusBunPatty = 2000; // Static platform + bun + patty height
+// DC lift motor encoder positions (counts from home)
+const int32_t kDcAboveTable         = 8000;  // High enough to clear table surface
+const int32_t kDcTableHeight        = 4000;   // Down to table level to grab ingredient
+const int32_t kDcStaticPlatform     = 820;   // Down to static platform surface
+const int32_t kDcStaticPlusBun      = 1000;   // Static platform + one bun height
+const int32_t kDcStaticPlusBunPatty = 2000;   // Static platform + bun + patty height
 
 // Stepper positions (steps from home)
 const int32_t kStepperTable           = 4000;   // Above ingredient on table
-const int32_t kStepperDynamicPlatform = 2300;   // Dynamic platform drop-off
+const int32_t kStepperDynamicPlatform = 2300;   // Dynamic platform position
 const int32_t kStepperStaticPlatform  = 0;  // Static platform drop-off
 
+// Drive motor settings
+const int16_t  kDriveForwardPwm  = 250;    // PWM for driving forward (0-255)
+const uint32_t kDriveBottomBunMs = 1000;   // Drive duration to patty position (ms)
+const uint32_t kDrivePattyMs     = 1000;   // Drive duration to top bun position (ms)
+
 // ============================================================================
-// HARDWARE CONSTANTS
+// HARDWARE CONSTANTS — lift motor
 // ============================================================================
 
-const uint8_t kDcPwmPin          = PIN_M3_EN;
-const uint8_t kDcDir1Pin         = PIN_M3_IN1;
-const uint8_t kDcDir2Pin         = PIN_M3_IN2;
-const bool    kDcDirInverted     = DC_MOTOR_3_DIR_INVERTED;
-const uint8_t kDcLimitPin        = PIN_LIM5;
-const int8_t  kDcHomeDirection   = -1;
-const uint8_t kDcHomePwm         = 100;
-const uint8_t kDcMovePwm         = 120;     // PWM for normal moves
+const uint8_t kDcPwmPin        = PIN_M3_EN;
+const uint8_t kDcDir1Pin       = PIN_M3_IN1;
+const uint8_t kDcDir2Pin       = PIN_M3_IN2;
+const bool    kDcDirInverted   = DC_MOTOR_3_DIR_INVERTED;
+const uint8_t kDcLimitPin      = PIN_LIM5;
+const int8_t  kDcHomeDirection = -1;
+const uint8_t kDcHomePwm       = 100;
+const uint8_t kDcMovePwm       = 120;
 
-const uint8_t  kStepperStepPin      = PIN_ST1_STEP;
-const uint8_t  kStepperDirPin       = PIN_ST1_DIR;
-const uint8_t  kStepperEnablePin    = PIN_ST1_EN;
-const uint8_t  kStepperLimitPin     = PIN_ST1_LIMIT;
+// Hardware constants — stepper
+const uint8_t  kStepperStepPin       = PIN_ST1_STEP;
+const uint8_t  kStepperDirPin        = PIN_ST1_DIR;
+const uint8_t  kStepperEnablePin     = PIN_ST1_EN;
+const uint8_t  kStepperLimitPin      = PIN_ST1_LIMIT;
 const int8_t   kStepperHomeDirection = -1;
-const uint16_t kStepperStepPulseUs  = 2000;
+const uint16_t kStepperStepPulseUs   = 1200;
 
 // ============================================================================
 // STATE
@@ -75,21 +104,16 @@ bool    stopRequested   = false;
 int32_t stepperPosition = 0;
 
 // ============================================================================
-// LOW-LEVEL MOTOR HELPERS
+// LOW-LEVEL HELPERS — lift motor
 // ============================================================================
 
-int32_t dcMotorPosition() {
-    return m3Encoder.getCount();
-}
+int32_t dcMotorPosition() { return m3Encoder.getCount(); }
 
 void pollStopRequest() {
     while (DEBUG_SERIAL.available() > 0) {
         char c = DEBUG_SERIAL.read();
         if (c == '\r' || c == '\n') continue;
-        if (c == '5') {
-            stopRequested = true;
-            break;
-        }
+        if (c == '5') { stopRequested = true; break; }
     }
 }
 
@@ -97,7 +121,7 @@ bool isLimitTriggered(uint8_t pin, uint8_t activeState) {
     return digitalRead(pin) == activeState;
 }
 
-void setMotorPwm(int16_t pwm) {
+void setLiftPwm(int16_t pwm) {
     if (pwm >  255) pwm =  255;
     if (pwm < -255) pwm = -255;
     if (kDcDirInverted) pwm = -pwm;
@@ -117,9 +141,82 @@ void setMotorPwm(int16_t pwm) {
     }
 }
 
-void stopDcMotor() {
-    setMotorPwm(0);
+void stopLiftMotor() { setLiftPwm(0); }
+
+// ============================================================================
+// LOW-LEVEL HELPERS — drive motors (M1/M2)
+// ============================================================================
+
+/**
+ * @brief Set PWM for a drive wheel motor (M1=0, M2=1)
+ */
+void setDriveMotorPwm(uint8_t motorId, int16_t pwm) {
+    uint8_t pinEN, pinIN1, pinIN2;
+    bool dirInverted;
+
+    switch (motorId) {
+        case 0:
+            pinEN = PIN_M1_EN; pinIN1 = PIN_M1_IN1; pinIN2 = PIN_M1_IN2;
+            dirInverted = DC_MOTOR_1_DIR_INVERTED;
+            break;
+        case 1:
+            pinEN = PIN_M2_EN; pinIN1 = PIN_M2_IN1; pinIN2 = PIN_M2_IN2;
+            dirInverted = DC_MOTOR_2_DIR_INVERTED;
+            break;
+        default: return;
+    }
+
+    if (pwm >  255) pwm =  255;
+    if (pwm < -255) pwm = -255;
+    if (dirInverted) pwm = -pwm;
+
+    if (pwm > 0) {
+        digitalWrite(pinIN1, HIGH);
+        digitalWrite(pinIN2, LOW);
+        analogWrite(pinEN, (uint8_t)pwm);
+    } else if (pwm < 0) {
+        digitalWrite(pinIN1, LOW);
+        digitalWrite(pinIN2, HIGH);
+        analogWrite(pinEN, (uint8_t)(-pwm));
+    } else {
+        digitalWrite(pinIN1, LOW);
+        digitalWrite(pinIN2, LOW);
+        analogWrite(pinEN, 0);
+    }
 }
+
+void stopDriveMotors() {
+    setDriveMotorPwm(0, 0);
+    setDriveMotorPwm(1, 0);
+}
+
+/**
+ * @brief Drive both wheels forward for a fixed duration, then stop.
+ * @param pwm     PWM magnitude (0-255)
+ * @param durationMs  How long to drive (milliseconds)
+ */
+void driveForward(int16_t pwm, uint32_t durationMs) {
+    DEBUG_SERIAL.print(F("[Drive] Forward PWM="));
+    DEBUG_SERIAL.print(pwm);
+    DEBUG_SERIAL.print(F(" for "));
+    DEBUG_SERIAL.print(durationMs);
+    DEBUG_SERIAL.println(F("ms"));
+
+    setDriveMotorPwm(0, pwm);
+    setDriveMotorPwm(1, pwm);
+
+    uint32_t startMs = millis();
+    while (millis() - startMs < durationMs && !stopRequested) {
+        pollStopRequest();
+    }
+
+    stopDriveMotors();
+    DEBUG_SERIAL.println(F("[Drive] Stopped."));
+}
+
+// ============================================================================
+// LOW-LEVEL HELPERS — stepper
+// ============================================================================
 
 void enableStepper()  { digitalWrite(kStepperEnablePin, LOW);  }
 void disableStepper() { digitalWrite(kStepperEnablePin, HIGH); }
@@ -135,35 +232,28 @@ void stepOnce() {
 // MOVE PRIMITIVES
 // ============================================================================
 
-/**
- * @brief Move DC motor to an absolute encoder position and block until there.
- */
 void moveDcTo(int32_t target) {
-    DEBUG_SERIAL.print(F("[DC] Moving to "));
+    DEBUG_SERIAL.print(F("[Lift] Moving to "));
     DEBUG_SERIAL.println(target);
 
     int32_t error = target - dcMotorPosition();
     if (abs(error) < 5) {
-        DEBUG_SERIAL.println(F("[DC] Already at target."));
+        DEBUG_SERIAL.println(F("[Lift] Already at target."));
         return;
     }
 
-    setMotorPwm(error > 0 ? kDcMovePwm : -kDcMovePwm);
-
+    setLiftPwm(error > 0 ? kDcMovePwm : -kDcMovePwm);
     while (!stopRequested) {
         pollStopRequest();
         error = target - dcMotorPosition();
         if (abs(error) < 5) break;
     }
 
-    stopDcMotor();
-    DEBUG_SERIAL.print(F("[DC] Arrived at "));
+    stopLiftMotor();
+    DEBUG_SERIAL.print(F("[Lift] Arrived at "));
     DEBUG_SERIAL.println(dcMotorPosition());
 }
 
-/**
- * @brief Move stepper to an absolute step position and block until there.
- */
 void moveStepperTo(int32_t target) {
     DEBUG_SERIAL.print(F("[Stepper] Moving to "));
     DEBUG_SERIAL.println(target);
@@ -195,12 +285,12 @@ void moveStepperTo(int32_t target) {
 // ============================================================================
 
 void homeDcMotor() {
-    DEBUG_SERIAL.println(F("[DC] Homing..."));
+    DEBUG_SERIAL.println(F("[Lift] Homing..."));
     pinMode(kDcLimitPin, LIMIT_ACTIVE_LOW ? INPUT_PULLUP : INPUT);
 
-    stopDcMotor();
+    stopLiftMotor();
     stopRequested = false;
-    setMotorPwm(kDcHomeDirection * kDcHomePwm);
+    setLiftPwm(kDcHomeDirection * kDcHomePwm);
 
     uint32_t startMs = millis();
     bool triggered = false;
@@ -212,21 +302,19 @@ void homeDcMotor() {
         }
     }
 
-    stopDcMotor();
+    stopLiftMotor();
 
     if (triggered) {
         m3Encoder.resetCount();
-
-        // Back off until switch releases
         uint8_t backoffPwm = max(kDcHomePwm / 2, 40);
-        setMotorPwm(-kDcHomeDirection * backoffPwm);
+        setLiftPwm(-kDcHomeDirection * backoffPwm);
         while (isLimitTriggered(kDcLimitPin, LIMIT_ACTIVE_LOW ? LOW : HIGH));
-        stopDcMotor();
+        stopLiftMotor();
         delay(200);
         m3Encoder.resetCount();
-        DEBUG_SERIAL.println(F("[DC] Homed."));
+        DEBUG_SERIAL.println(F("[Lift] Homed."));
     } else {
-        DEBUG_SERIAL.println(F("[DC] Home FAILED — timeout or aborted."));
+        DEBUG_SERIAL.println(F("[Lift] Home FAILED — timeout or aborted."));
     }
 }
 
@@ -267,17 +355,16 @@ void pickUpIngredient(const char* name, int32_t dcDropHeight) {
     DEBUG_SERIAL.print(F("\n--- Picking up: "));
     DEBUG_SERIAL.println(name);
 
-    // Raise DC above table
     moveDcTo(kDcAboveTable);
-    // Stepper to above ingredient on table
+    if (stopRequested) return;
     moveStepperTo(kStepperTable);
-    // DC down to table height to grab ingredient
+    if (stopRequested) return;
     moveDcTo(kDcTableHeight);
-    // Stepper carry ingredient to dynamic platform position
+    if (stopRequested) return;
     moveStepperTo(kStepperDynamicPlatform);
-    // DC down to drop height on static platform
+    if (stopRequested) return;
     moveDcTo(dcDropHeight);
-    // Stepper slide to static platform drop-off
+    if (stopRequested) return;
     moveStepperTo(kStepperStaticPlatform);
 
     DEBUG_SERIAL.print(F("--- Done: "));
@@ -286,12 +373,9 @@ void pickUpIngredient(const char* name, int32_t dcDropHeight) {
 
 void transferBurgerToDynamicPlatform() {
     DEBUG_SERIAL.println(F("\n--- Transferring burger to dynamic platform"));
-
-    // DC down to static platform level to engage burger
     moveDcTo(kDcStaticPlatform);
-    // Stepper pull burger back to dynamic platform
+    if (stopRequested) return;
     moveStepperTo(kStepperDynamicPlatform);
-
     DEBUG_SERIAL.println(F("--- Transfer complete."));
 }
 
@@ -311,25 +395,26 @@ void runBurgerAssembly() {
     if (stopRequested) return;
 
     // Step 2: Pick up bottom bun
-    // Drop at static platform height (nothing stacked yet)
     pickUpIngredient("Bottom Bun", kDcStaticPlatform);
     if (stopRequested) return;
 
-    // TODO: drive robot forward to patty position
+    // Step 3: Drive forward to patty position
+    driveForward(kDriveForwardPwm, kDriveBottomBunMs);
+    if (stopRequested) return;
 
-    // Step 3: Pick up patty
-    // Drop at static platform + bun height (stacking on top of bun)
+    // Step 4: Pick up patty
     pickUpIngredient("Patty", kDcStaticPlusBun);
     if (stopRequested) return;
 
-    // TODO: drive robot forward to top bun position
+    // Step 5: Drive forward to top bun position
+    driveForward(kDriveForwardPwm, kDrivePattyMs);
+    if (stopRequested) return;
 
-    // Step 4: Pick up top bun
-    // Drop at static platform + bun + patty height
+    // Step 6: Pick up top bun
     pickUpIngredient("Top Bun", kDcStaticPlusBunPatty);
     if (stopRequested) return;
 
-    // Step 5: Transfer assembled burger to dynamic platform
+    // Step 7: Transfer assembled burger to dynamic platform
     transferBurgerToDynamicPlatform();
 
     DEBUG_SERIAL.println(F("\n========================================"));
@@ -345,26 +430,35 @@ void setup() {
     DEBUG_SERIAL.begin(DEBUG_BAUD_RATE);
     while (!DEBUG_SERIAL && millis() < 2000);
 
-    m3Encoder.init(
-        PIN_M3_ENC_A,
-        PIN_M3_ENC_B,
-        ENCODER_3_DIR_INVERTED);
-
-    // Enable PCINT2 for M3 encoder (A14=PCINT22, A15=PCINT23 on Mega 2560)
+    // Lift encoder (M3 — PCINT)
+    m3Encoder.init(PIN_M3_ENC_A, PIN_M3_ENC_B, ENCODER_3_DIR_INVERTED);
     PCMSK2 |= (1 << PCINT14) | (1 << PCINT15);
     PCICR  |= (1 << PCIE2);
 
+    // Drive encoders (M1/M2 — hardware INT)
+    encoder1.init(PIN_M1_ENC_A, PIN_M1_ENC_B, ENCODER_1_DIR_INVERTED);
+    encoder2.init(PIN_M2_ENC_A, PIN_M2_ENC_B, ENCODER_2_DIR_INVERTED);
+    attachInterrupt(digitalPinToInterrupt(PIN_M1_ENC_A), encoderISR_M1, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_M2_ENC_A), encoderISR_M2, CHANGE);
+
+    // Lift motor pins
     pinMode(kDcPwmPin,  OUTPUT);
     pinMode(kDcDir1Pin, OUTPUT);
     pinMode(kDcDir2Pin, OUTPUT);
-    stopDcMotor();
+    stopLiftMotor();
 
+    // Drive motor pins
+    pinMode(PIN_M1_EN,  OUTPUT); pinMode(PIN_M1_IN1, OUTPUT); pinMode(PIN_M1_IN2, OUTPUT);
+    pinMode(PIN_M2_EN,  OUTPUT); pinMode(PIN_M2_IN1, OUTPUT); pinMode(PIN_M2_IN2, OUTPUT);
+    stopDriveMotors();
+
+    // Stepper pins
     pinMode(kStepperStepPin,   OUTPUT);
     pinMode(kStepperDirPin,    OUTPUT);
     pinMode(kStepperEnablePin, OUTPUT);
     disableStepper();
 
-    // Limit switch pins always configured regardless of homing
+    // Limit switch pins
     pinMode(kDcLimitPin,      LIMIT_ACTIVE_LOW ? INPUT_PULLUP : INPUT);
     pinMode(kStepperLimitPin, LIMIT_ACTIVE_LOW ? INPUT_PULLUP : INPUT);
 
@@ -385,9 +479,10 @@ void loop() {
             runBurgerAssembly();
         } else if (c == '5') {
             stopRequested = true;
-            stopDcMotor();
+            stopLiftMotor();
+            stopDriveMotors();
             disableStepper();
-            DEBUG_SERIAL.println(F("STOP requested — all motors halted."));
+            DEBUG_SERIAL.println(F("STOP — all motors halted."));
         } else {
             DEBUG_SERIAL.println(F("Send 'g' to start, '5' to stop."));
         }
