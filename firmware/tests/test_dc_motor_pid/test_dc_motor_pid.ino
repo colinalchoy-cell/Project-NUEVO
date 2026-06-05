@@ -49,6 +49,7 @@
 #include "src/modules/VelocityEstimator.h"
 #include "src/drivers/DCMotor.h"
 #include <util/atomic.h>
+#define DEBUG_SERIAL Serial
 
 // ============================================================================
 // ENCODER AND VELOCITY ESTIMATOR INSTANCES

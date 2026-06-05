@@ -63,6 +63,14 @@ VELOCITY_MM_S = 150.0
 TOLERANCE_MM = 50.0
 MAX_ANGULAR_RAD_S = 1.0
 
+# --- Pre-move (pure pursuit) before starting LAPF --------------------------
+# Two waypoints: move forward 300 mm, then right 300 mm (relative to reset pose)
+PRE_FORWARD_MM = 300.0
+PRE_RIGHT_MM = 300.0
+PRE_LOOKAHEAD_MM = 120.0
+PRE_TOLERANCE_MM = 30.0
+PRE_ADVANCE_RADIUS_MM = 80.0
+
 # Edit these directly while tuning LAPF behavior.
 LEASH_LENGTH_MM = 400.0 # This is for a front wheel drive; make it ~50 mm for a rear wheel drive
 REPULSION_RANGE_MM = 300.0
@@ -260,6 +268,24 @@ def run(robot: Robot) -> None:
             if robot.was_button_pressed(Button.BTN_1):
                 reset_mission_pose(robot)
                 show_running_leds(robot)
+                # Pre-move: pure pursuit through two waypoints (blocking)
+                waypoints = [
+                    (0.0, PRE_FORWARD_MM),
+                    (PRE_RIGHT_MM, PRE_FORWARD_MM),
+                ]
+                print(f"[FSM] PRE-MOVE — following {len(waypoints)} waypoints: {waypoints}")
+                # Use robot's pure pursuit API in blocking mode so we arrive before LAPF
+                robot.purepursuit_follow_path(
+                    waypoints=waypoints,
+                    velocity=VELOCITY_MM_S,
+                    lookahead=PRE_LOOKAHEAD_MM,
+                    tolerance=PRE_TOLERANCE_MM,
+                    advance_radius=PRE_ADVANCE_RADIUS_MM,
+                    max_angular_rad_s=MAX_ANGULAR_RAD_S,
+                    blocking=True,
+                )
+                # Small pause to let odometry update, then start LAPF goal
+                robot.wait_for_pose_update(timeout=0.2)
                 motion_handle = start_goal(robot)
                 last_status_print_at = now
                 print("[FSM] MOVING — LAPF goal started")
