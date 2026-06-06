@@ -44,7 +44,7 @@ from robot.util import densify_polyline  # noqa: F401 - optional helper for stud
 # robot/hardware_map.py.
 # ---------------------------------------------------------------------------
 
-ENABLE_LIDAR = False
+ENABLE_LIDAR = True
 ENABLE_GPS   = False
 
 TAG_ID = 24  # IMPORTANT: set to the ArUco marker ID on your robot
@@ -81,8 +81,8 @@ GPS_TANGENT_MIN_DISPLACEMENT_MM = 200.0
 
 PATH_CONTROL_POINTS = [
     (0.0, 0.0),
-    (0.0, 610*6),
-    (610.0, 610*6),
+    (0.0, 10),
+
 ]
 
 # Optional: densify long segments for smoother tracking.
@@ -203,7 +203,7 @@ def run(robot: Robot) -> None:
             start_robot(robot)
             reset_mission_pose(robot)
             show_idle_leds(robot)
-            print("[FSM] IDLE — press BTN_1 to start path, BTN_2 to cancel")
+            print("[FSMhelp me] IDLE — press BTN_1 to start path, BTN_2 to cancel")
             print(
                 f"[CFG] velocity={VELOCITY_MM_S:.0f} mm/s  lookahead={LOOKAHEAD_MM:.0f} mm  "
                 f"tolerance={TOLERANCE_MM:.0f} mm  advance_radius={ADVANCE_RADIUS_MM:.0f} mm"
