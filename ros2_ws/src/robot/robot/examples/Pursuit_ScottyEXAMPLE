@@ -81,9 +81,12 @@ GPS_TANGENT_MIN_DISPLACEMENT_MM = 200.0
 
 RAW_PATH_CONTROL_POINTS = [
     (0.0, 0.0),
-    (0.0, 600),
-    (600, 600),
-    (600, 1200)
+    (0.0, 1220),
+    (0, 3360),
+    (610, 3360),
+    (610, 310),
+    (1530, 310),
+    (1530, 920)
 ]
 
 # Densify long segments for smoother tracking. Adjust spacing (mm)
@@ -109,7 +112,7 @@ LAPF_ATTRACTION_GAIN = 1.0
 LAPF_FORCE_EMA_ALPHA = 0.35
 LAPF_INFLATION_MARGIN_MM = 130.0
 LAPF_LEASH_HALF_ANGLE_DEG = 25.0
-LAPF_GOAL_EXTENSION_MM = 10000.0
+LAPF_GOAL_EXTENSION_MM = 2050.0
 
 
 def build_far_goal() -> tuple[float, float]:
