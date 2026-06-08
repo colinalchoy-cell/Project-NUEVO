@@ -62,8 +62,8 @@
 #define PIN_M2_EN               7       // PWM Enable (speed control) [Timer4 OC4B]
 #define PIN_M2_IN1              4       // Direction control 1
 #define PIN_M2_IN2              30      // Direction control 2
-#define PIN_M2_ENC_A            18      // Encoder Phase A (INT5) — 4x quadrature
-#define PIN_M2_ENC_B            19      // Encoder Phase B (INT4) — 4x quadrature
+#define PIN_M2_ENC_A            A14      // Encoder Phase A (INT5) — 4x quadrature normally 18
+#define PIN_M2_ENC_B            A15     // Encoder Phase B (INT4) — 4x quadrature normally 19
 #define PIN_M2_CT               A4      // Current sense (analog)
 
 // ============================================================================
@@ -73,8 +73,8 @@
 #define PIN_M3_EN               9       // PWM Enable (speed control)
 #define PIN_M3_IN1              34      // Direction control 1
 #define PIN_M3_IN2              35      // Direction control 2
-#define PIN_M3_ENC_A            A14     // Encoder Phase A (PCINT14) — 4x via PCINT
-#define PIN_M3_ENC_B            A15     // Encoder Phase B (PCINT15) — 4x via PCINT
+#define PIN_M3_ENC_A            18     // Encoder Phase A (PCINT14) — 4x via PCINT      normally A14
+#define PIN_M3_ENC_B            19     // Encoder Phase B (PCINT15) — 4x via PCINT      normally A15
 #define PIN_M3_CT               A5      // Current sense (analog)
 
 // ============================================================================
