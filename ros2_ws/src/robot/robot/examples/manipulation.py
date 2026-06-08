@@ -191,7 +191,7 @@ def run_pick_sequence(robot: Robot) -> bool:
 
     # print("[SEQ] open gripper")
     # robot.set_servo(GRIPPER_SERVO, GRIPPER_OPEN_DEG)
-    time.sleep(GRIPPER_SETTLE_S)
+    # time.sleep(GRIPPER_SETTLE_S)
 
     print("[SEQ] lower lift")
     if not robot.set_motor_position(
@@ -210,7 +210,7 @@ def run_pick_sequence(robot: Robot) -> bool:
 
     # print("[SEQ] close gripper")
     # robot.set_servo(GRIPPER_SERVO, GRIPPER_CLOSE_DEG)
-    time.sleep(GRIPPER_SETTLE_S)
+    # time.sleep(GRIPPER_SETTLE_S)
 
     print("[SEQ] raise lift")
     if not robot.set_motor_position(
@@ -263,9 +263,9 @@ def run(robot: Robot) -> None:
             restore_idle_lift(robot)
             show_idle_leds(robot)
             print("[FSM] IDLE — press BTN_1 to run the pick sequence")
-            print(
-                f"[CFG] gripper open={GRIPPER_OPEN_DEG:.0f}° close={GRIPPER_CLOSE_DEG:.0f}°"
-            )
+            # print(
+            #     f"[CFG] gripper open={GRIPPER_OPEN_DEG:.0f}° close={GRIPPER_CLOSE_DEG:.0f}°"
+            # )
             print(
                 f"[CFG] lift low={LIFT_DOWN_TICKS} high={LIFT_UP_TICKS} ticks "
                 f"max_vel={LIFT_MAX_VEL_TICKS} ticks/s"
