@@ -434,7 +434,7 @@ extern Print &DEBUG_SERIAL;
 // Uncomment and update these definitions if DC motors use limit switches for
 // encoder zeroing / homing. Leave undefined to disable homing for that motor.
 
-#define PIN_M1_LIMIT        PIN_LIM5
+#define PIN_M3_LIMIT        PIN_LIM5
 // #define PIN_M2_LIMIT        PIN_LIM6
 // #define PIN_M3_LIMIT        PIN_LIM7
 // #define PIN_M4_LIMIT        PIN_LIM8
