@@ -50,8 +50,8 @@ const int8_t kStepperHomeDirection = -1;         // +1 or -1; flip if needed
 const uint16_t kStepperStepPulseUs = 1000;        // Step pulse width and spacing
 
 // Hard-coded test values
-const uint32_t kDcEncoderPositions[] = {10, 30, 50};
-const int32_t kStepperDistances[] = {200, 800, 1800};
+const uint32_t kDcEncoderPositions[] = {750, 3500, 5700, 8000};
+const int32_t kStepperDistances[] = {0, 1750, 4500};
 
 bool stopRequested = false;
 
