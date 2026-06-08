@@ -59,23 +59,23 @@
 // DC MOTOR 2 (Default Left/Right Wheel)
 // ============================================================================
 
-#define PIN_M2_EN               7       // PWM Enable (speed control) [Timer4 OC4B]
-#define PIN_M2_IN1              4       // Direction control 1
-#define PIN_M2_IN2              30      // Direction control 2
+#define PIN_M2_EN               7       // PWM Enable (speed control) [Timer4 OC4B]    normally 7
+#define PIN_M2_IN1              4       // Direction control 1          normally 4
+#define PIN_M2_IN2              30      // Direction control 2          normally 30
 #define PIN_M2_ENC_A            18      // Encoder Phase A (INT5) — 4x quadrature normally 18
 #define PIN_M2_ENC_B            19     // Encoder Phase B (INT4) — 4x quadrature normally 19
-#define PIN_M2_CT               A4      // Current sense (analog)
+#define PIN_M2_CT               A5      // Current sense (analog)         normally A4
 
 // ============================================================================
 // DC MOTOR 3 (Manipulator - Optional)
 // ============================================================================
 
-#define PIN_M3_EN               9       // PWM Enable (speed control)
-#define PIN_M3_IN1              34      // Direction control 1
-#define PIN_M3_IN2              35      // Direction control 2
+#define PIN_M3_EN               9       // PWM Enable (speed control)      normally 9
+#define PIN_M3_IN1              34      // Direction control 1        normally 34
+#define PIN_M3_IN2              35      // Direction control 2        normally 35
 #define PIN_M3_ENC_A            A14     // Encoder Phase A (PCINT14) — 4x via PCINT      normally A14
 #define PIN_M3_ENC_B            A15     // Encoder Phase B (PCINT15) — 4x via PCINT      normally A15
-#define PIN_M3_CT               A5      // Current sense (analog)
+#define PIN_M3_CT               A5      // Current sense (analog)       normally A5
 
 // ============================================================================
 // DC MOTOR 4 (Manipulator - Optional)

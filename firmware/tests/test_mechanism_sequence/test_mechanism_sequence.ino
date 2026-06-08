@@ -60,20 +60,21 @@ void encoderISR_M2() { encoder2.onInterruptA(); }
 
 // DC lift motor encoder positions (counts from home)
 const int32_t kDcAboveTable         = 8000;  // High enough to clear table surface
-const int32_t kDcTableHeight        = 4000;   // Down to table level to grab ingredient
+const int32_t kDcTableHeight        = 5700;   // Down to table level to grab ingredient
 const int32_t kDcStaticPlatform     = 820;   // Down to static platform surface
-const int32_t kDcStaticPlusBun      = 1000;   // Static platform + one bun height
-const int32_t kDcStaticPlusBunPatty = 2000;   // Static platform + bun + patty height
+const int32_t kDcStaticPlusBun      = 3500;   // Static platform + one bun height
+const int32_t kDcStaticPlusBunPatty = 5700;   // Static platform + bun + patty height
 
 // Stepper positions (steps from home)
-const int32_t kStepperTable           = 4000;   // Above ingredient on table
-const int32_t kStepperDynamicPlatform = 2300;   // Dynamic platform position
+const int32_t kStepperTable           = 4500;   // Above ingredient on table
+const int32_t kStepperDynamicPlatform = 1750;   // Dynamic platform position
 const int32_t kStepperStaticPlatform  = 0;  // Static platform drop-off
 
 // Drive motor settings
-const int16_t  kDriveForwardPwm  = 250;    // PWM for driving forward (0-255)
-const uint32_t kDriveBottomBunMs = 1000;   // Drive duration to patty position (ms)
-const uint32_t kDrivePattyMs     = 1000;   // Drive duration to top bun position (ms)
+const int16_t  kDriveForwardPwm  = 100;    // PWM for driving forward (0-255)
+const uint32_t kDriveInitialMs   = 2450;   // Drive after homing to reach first ingredient
+const uint32_t kDrivePattyMs     = 365;   // Drive duration to patty position (ms)
+const uint32_t kDriveBottomBunMs = 365;   // Drive duration to top bun position (ms)
 
 // ============================================================================
 // HARDWARE CONSTANTS — lift motor
@@ -85,8 +86,8 @@ const uint8_t kDcDir2Pin       = PIN_M3_IN2;
 const bool    kDcDirInverted   = DC_MOTOR_3_DIR_INVERTED;
 const uint8_t kDcLimitPin      = PIN_LIM5;
 const int8_t  kDcHomeDirection = -1;
-const uint8_t kDcHomePwm       = 100;
-const uint8_t kDcMovePwm       = 120;
+const uint8_t kDcHomePwm       = 80;
+const uint8_t kDcMovePwm       = 200;
 
 // Hardware constants — stepper
 const uint8_t  kStepperStepPin       = PIN_ST1_STEP;
@@ -394,27 +395,31 @@ void runBurgerAssembly() {
     homeDcMotor();
     if (stopRequested) return;
 
-    // Step 2: Pick up bottom bun
+    // Step 2: Drive forward to first ingredient (bottom bun)
+    driveForward(kDriveForwardPwm, kDriveInitialMs);
+    if (stopRequested) return;
+
+    // Step 3: Pick up bottom bun
     pickUpIngredient("Bottom Bun", kDcStaticPlatform);
     if (stopRequested) return;
 
-    // Step 3: Drive forward to patty position
-    driveForward(kDriveForwardPwm, kDriveBottomBunMs);
-    if (stopRequested) return;
-
-    // Step 4: Pick up patty
-    pickUpIngredient("Patty", kDcStaticPlusBun);
-    if (stopRequested) return;
-
-    // Step 5: Drive forward to top bun position
+    // Step 4: Drive forward to patty position
     driveForward(kDriveForwardPwm, kDrivePattyMs);
     if (stopRequested) return;
 
-    // Step 6: Pick up top bun
+    // Step 5: Pick up patty
+    pickUpIngredient("Patty", kDcStaticPlusBun);
+    if (stopRequested) return;
+
+    // Step 6: Drive forward to top bun position
+    driveForward(kDriveForwardPwm, kDriveBottomBunMs);
+    if (stopRequested) return;
+
+    // Step 7: Pick up top bun
     pickUpIngredient("Top Bun", kDcStaticPlusBunPatty);
     if (stopRequested) return;
 
-    // Step 7: Transfer assembled burger to dynamic platform
+    // Step 8: Transfer assembled burger to dynamic platform
     transferBurgerToDynamicPlatform();
 
     DEBUG_SERIAL.println(F("\n========================================"));
