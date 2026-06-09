@@ -1,35 +1,3 @@
-"""
-Start_Green_Light.py - vision-triggered motor start on green
-============================================================
-This example reads traffic-light detections from the vision node and uses the
-Robot API to activate LEDs and trigger a motor action when a green light is detected.
-
-HOW TO RUN
-----------
-Start the vision node in another terminal:
-
-    ros2 run vision vision_node
-
-Then copy this file over main.py and restart the robot node:
-
-    cp examples/Start_Green_Light.py main.py
-    ros2 run robot robot
-
-WHAT THE ROBOT DOES
--------------------
-If a red traffic light is detected, the red LED turns on.
-If a green traffic light is detected, the green LED turns on and the robot
-begins a forward driving stage.
-If no new red/green traffic light is seen for 2 seconds, all LEDs turn off.
-
-WHAT THIS TEACHES
------------------
-1. Reading vision results through the Robot API
-2. Finding a specific detected class and reading its attributes
-3. Holding an output for a short time without blocking the FSM loop
-4. Triggering a motor action when green is detected
-"""
-
 from __future__ import annotations
 
 import time
@@ -37,19 +5,22 @@ import time
 from robot.hardware_map import DEFAULT_FSM_HZ, LED, POSITION_UNIT
 from robot.robot import FirmwareState, Robot
 
-
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
-LED_BRIGHTNESS = 255
-LIGHT_HOLD_SEC = 2.0
-VISION_STALE_SEC = 3.0
+LED_BRIGHTNESS              = 255
+LIGHT_HOLD_SEC              = 2.0
+VISION_STALE_SEC            = 3.0
 MIN_TRAFFIC_LIGHT_CONFIDENCE = 0.50
-DRIVE_DISTANCE_MM = 150.0
-DRIVE_VELOCITY_MM_S = 80.0
-DRIVE_TOLERANCE_MM = 15.0
 
+# Turning — slow left turn while scanning for light
+TURN_LEFT_PWM               = 60    # tune this — slow enough to detect reliably
+
+# Forward drive after green
+DRIVE_DISTANCE_MM           = 500.0
+DRIVE_VELOCITY_MM_S         = 150.0
+DRIVE_TOLERANCE_MM          = 15.0
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -86,101 +57,114 @@ def find_traffic_light_color(robot: Robot) -> str | None:
     if not robot.is_vision_active(timeout_s=VISION_STALE_SEC):
         return None
 
-    best_color = None
+    best_color      = None
     best_confidence = -1.0
 
     for detection in robot.get_detections("traffic light"):
         confidence = float(detection["confidence"])
         if confidence < MIN_TRAFFIC_LIGHT_CONFIDENCE:
             continue
-
-        attributes = detection.get("attributes", {})
+        attributes      = detection.get("attributes", {})
         color_attribute = attributes.get("color", {})
-        color = color_attribute.get("value")
+        color           = color_attribute.get("value")
         if color not in ("red", "green"):
             continue
-
         if confidence > best_confidence:
             best_confidence = confidence
-            best_color = str(color)
+            best_color      = str(color)
 
     return best_color
 
 
+def start_turn_left(robot: Robot) -> None:
+    """Slow left turn in place — left motor backward, right motor forward."""
+    from robot.hardware_map import DCMotorMode, Motor
+    robot.enable_motor(Motor.DC_M1, DCMotorMode.PWM)
+    robot.enable_motor(Motor.DC_M2, DCMotorMode.PWM)
+    robot.set_motor_pwm(int(Motor.DC_M1), -TURN_LEFT_PWM)   # left backward
+    robot.set_motor_pwm(int(Motor.DC_M2),  TURN_LEFT_PWM)   # right forward
+
+
+def stop_turn(robot: Robot) -> None:
+    from robot.hardware_map import DCMotorMode, Motor
+    robot.set_motor_pwm(int(Motor.DC_M1), 0)
+    robot.set_motor_pwm(int(Motor.DC_M2), 0)
+    robot.disable_motor(Motor.DC_M1)
+    robot.disable_motor(Motor.DC_M2)
+
+
 # ---------------------------------------------------------------------------
-# run() - entry point called by the robot node
+# run() — entry point
 # ---------------------------------------------------------------------------
 
 def run(robot: Robot) -> None:
     configure_robot(robot)
 
-    state = "INIT"
-    lights_off_at = 0.0
-    last_shown_color = None
+    state         = "INIT"
     motion_handle = None
 
-    period = 1.0 / float(DEFAULT_FSM_HZ)
+    period    = 1.0 / float(DEFAULT_FSM_HZ)
     next_tick = time.monotonic()
 
     while True:
 
-        # -- INIT -----------------------------------------------------------
+        # ── INIT ─────────────────────────────────────────────────────────────
         if state == "INIT":
             start_robot(robot)
             dim_all_leds(robot)
-            print("[FSM] WATCHING - show a red or green traffic light")
-            state = "WATCHING"
+            print("[FSM] SCANNING — turning left slowly until red light found")
+            start_turn_left(robot)
+            state = "SCANNING_FOR_RED"
 
-        # -- WATCHING -------------------------------------------------------
-        elif state == "WATCHING":
-            now = time.monotonic()
+        # ── SCANNING FOR RED ─────────────────────────────────────────────────
+        # Robot turns left slowly until a red light is detected
+        elif state == "SCANNING_FOR_RED":
+            color = find_traffic_light_color(robot)
 
-            traffic_light_color = find_traffic_light_color(robot)
+            if color == "red":
+                print("[FSM] RED detected — stopping turn, waiting for green")
+                stop_turn(robot)
+                show_traffic_light_color(robot, "red")
+                state = "WAITING_FOR_GREEN"
 
-            if traffic_light_color == "green":
-                show_traffic_light_color(robot, traffic_light_color)
-                lights_off_at = now + LIGHT_HOLD_SEC
-                if traffic_light_color != last_shown_color:
-                    print(f"[VISION] traffic light: {traffic_light_color}")
-                last_shown_color = traffic_light_color
+        # ── WAITING FOR GREEN ────────────────────────────────────────────────
+        # Robot is stopped, watching for light to turn green
+        elif state == "WAITING_FOR_GREEN":
+            color = find_traffic_light_color(robot)
 
-                if motion_handle is None:
-                    motion_handle = robot.move_forward(
-                        distance=DRIVE_DISTANCE_MM,
-                        velocity=DRIVE_VELOCITY_MM_S,
-                        tolerance=DRIVE_TOLERANCE_MM,
-                        blocking=False,
-                    )
-                    print("[FSM] GREEN detected → moving forward")
-                    state = "MOVING_FORWARD"
+            if color == "green":
+                print("[FSM] GREEN detected — driving forward")
+                show_traffic_light_color(robot, "green")
+                motion_handle = robot.move_forward(
+                    distance=DRIVE_DISTANCE_MM,
+                    velocity=DRIVE_VELOCITY_MM_S,
+                    tolerance=DRIVE_TOLERANCE_MM,
+                    blocking=False,
+                )
+                state = "MOVING_FORWARD"
 
-            elif traffic_light_color == "red":
-                show_traffic_light_color(robot, traffic_light_color)
-                lights_off_at = now + LIGHT_HOLD_SEC
-                if traffic_light_color != last_shown_color:
-                    print(f"[VISION] traffic light: {traffic_light_color}")
-                last_shown_color = traffic_light_color
+            elif color == "red":
+                # Still red — keep LED on
+                show_traffic_light_color(robot, "red")
 
-            elif lights_off_at > 0.0 and now >= lights_off_at:
+            else:
+                # Light lost — dim LEDs but stay waiting
                 dim_all_leds(robot)
-                lights_off_at = 0.0
-                if last_shown_color is not None:
-                    print("[VISION] no recent red/green light - LEDs off")
-                last_shown_color = None
 
-            # Generic API version for custom objects:
-            # detections = robot.get_detections("my_object")
-            # value = robot.get_detection_attribute("my_object", "my_attribute")
-
+        # ── MOVING FORWARD ───────────────────────────────────────────────────
         elif state == "MOVING_FORWARD":
             if motion_handle is not None and motion_handle.is_finished():
                 motion_handle = None
                 robot.stop()
                 dim_all_leds(robot)
-                print("[FSM] move forward complete — back to WATCHING")
-                state = "WATCHING"
+                print("[FSM] DONE — forward drive complete")
+                state = "DONE"
 
-        # -- Tick-rate control ---------------------------------------------
+        # ── DONE ─────────────────────────────────────────────────────────────
+        elif state == "DONE":
+            pass  # sit idle — extend with next phase here
+
+        # ── TICK ─────────────────────────────────────────────────────────────
         next_tick += period
         sleep_s = next_tick - time.monotonic()
         if sleep_s > 0.0:
