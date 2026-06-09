@@ -69,10 +69,10 @@ TAG_ID = 24  # IMPORTANT: set to the ArUco marker ID on your robot
 # To tune: watch θ_odom vs θ_fused in the status output while running.
 # ---------------------------------------------------------------------------
 
-GPS_POSITION_ALPHA           = 0.10
+GPS_POSITION_ALPHA           = 0.0
 ENABLE_GPS_TANGENT_HEADING   = True
-GPS_TANGENT_ALPHA            = 0.15
-GPS_TANGENT_MIN_DISPLACEMENT_MM = 200.0
+GPS_TANGENT_ALPHA            = 0.1
+GPS_TANGENT_MIN_DISPLACEMENT_MM = 400.0
 
 
 # ---------------------------------------------------------------------------
@@ -82,9 +82,9 @@ GPS_TANGENT_MIN_DISPLACEMENT_MM = 200.0
 RAW_PATH_CONTROL_POINTS = [
     (0.0, 0.0),
     (0.0, 1220),
-    (0, 3360),
-    (610, 3360),
-    (610, 310),
+    (0, 3410),
+    (550, 3410),
+    (550, 310),
     (1530, 310),
     (1530, 920)
 ]
@@ -93,11 +93,11 @@ RAW_PATH_CONTROL_POINTS = [
 # for more/less intermediate points.
 PATH_CONTROL_POINTS = densify_polyline(RAW_PATH_CONTROL_POINTS, spacing=10.0)
 
-VELOCITY_MM_S      = 225.0
-LOOKAHEAD_MM       = 0.0
+VELOCITY_MM_S      = 400.0
+LOOKAHEAD_MM       = 15.0
 TOLERANCE_MM       = 25.0
 ADVANCE_RADIUS_MM  = 80.0
-MAX_ANGULAR_RAD_S  = 1.5
+MAX_ANGULAR_RAD_S  = 1.75
 
 STATUS_PRINT_INTERVAL_S = 0.5
 
