@@ -45,7 +45,7 @@ from robot.util import densify_polyline  # noqa: F401 - optional helper for stud
 # ---------------------------------------------------------------------------
 
 ENABLE_LIDAR = True
-ENABLE_GPS   = False
+ENABLE_GPS   = True
 
 TAG_ID = 24  # IMPORTANT: set to the ArUco marker ID on your robot
 
@@ -70,7 +70,7 @@ TAG_ID = 24  # IMPORTANT: set to the ArUco marker ID on your robot
 # ---------------------------------------------------------------------------
 
 GPS_POSITION_ALPHA           = 0.10
-ENABLE_GPS_TANGENT_HEADING   = False
+ENABLE_GPS_TANGENT_HEADING   = True
 GPS_TANGENT_ALPHA            = 0.15
 GPS_TANGENT_MIN_DISPLACEMENT_MM = 200.0
 
