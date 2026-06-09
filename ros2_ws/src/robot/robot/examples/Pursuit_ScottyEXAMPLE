@@ -83,10 +83,10 @@ RAW_PATH_CONTROL_POINTS = [
     (0.0, 0.0),
     (0.0, 1220),
     (0, 3410),
-    (550, 3410),
-    (550, 310),
-    (1530, 310),
-    (1530, 920)
+    (540, 3410),
+    (200, 300),
+    (800, 310),
+    (800, 610)
 ]
 
 # Densify long segments for smoother tracking. Adjust spacing (mm)
