@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "course": "MAE 162D/E",
+  "year": 2026,
+  "section": "Yen",
+  "group": 8,
+  "title": "Group 8 Example Capstone Portfolio",
+  "authors": ["Colin Choy", "Allison Liu", "Scott Bloom", "Oscar Platt", "Sheryl Anand", "Elizabeth van Blommestein"],
+  "summary": "Group 8 Autonomous Burger Robot",
+  "thumbnail": "ros2_ws/src/robot/Group 8 Burger Bot.png",
+  "keywords": ["SLAM", "LiDAR", "Goes very fast"]
+}
